@@ -2,11 +2,11 @@
 
 from gensim.test.utils import get_tmpfile
 from gensim.models.doc2vec import Doc2Vec, TaggedDocument
-from gensim.models.word2vec import Word2Vec
 from sklearn.linear_model import LogisticRegression
-from sklearn import svm, utils, tree
+from sklearn import svm, utils, tree, metrics
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import SGDClassifier
+from sklearn.metrics import classification_report
 import numpy as np
 import multiprocessing
 import jieba
@@ -28,6 +28,7 @@ test_line_cnt = int(subprocess.check_output(['wc', '-l', test_raw_file]).strip()
                     .split()[0].decode("utf-8"))
 test_quantity = test_line_cnt
 train_quantity = train_line_cnt
+cores = multiprocessing.cpu_count()
 
 # 加载停用词
 stopwords_list_name = os.path.join(CWD, "data", "ChineseStopwords.txt")
@@ -49,6 +50,8 @@ def preprocessingCN(text):
 
 train_documents = []
 test_documents = []
+pure_train_documents = []
+pure_test_documents = []
 train_category = np.zeros(train_quantity)
 test_category = np.zeros(test_quantity)
 
@@ -59,7 +62,6 @@ inverse_tags_index = dict([val, key] for key, val in tags_index.items())
 train_tag_cnt = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 test_tag_cnt = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
-# category = {}
 
 # 读取语料至 TaggedDocument
 print('Start to read train file:')
@@ -69,8 +71,9 @@ with open(train_raw_file, 'r', encoding="utf-8") as f:
     for line in f:
         print('read {}'.format(i))
         items = line.split('\t')
+        pure_train_documents.append(preprocessingCN(items[1]))
         train_documents.append(TaggedDocument(
-            words=preprocessingCN(items[1]),
+            words=pure_train_documents[i],
             tags=[i]))
         train_category[i] = tags_index.get(items[0])
         train_tag_cnt[tags_index.get(items[0])] += 1
@@ -82,8 +85,9 @@ with open(test_raw_file, 'r', encoding="utf-8") as f:
     for line in f:
         print('read {}'.format(i))
         items = line.split('\t')
+        pure_test_documents.append(preprocessingCN(items[1]))
         test_documents.append(TaggedDocument(
-            words=preprocessingCN(items[1]),
+            words=pure_test_documents[i],
             tags=[i+train_line_cnt]))
         test_category[i] = tags_index.get(items[0])
         test_tag_cnt[tags_index.get(items[0])] += 1
@@ -103,9 +107,8 @@ print(train_documents[100])
 def doc2vec_training(documents, v_size, dm=1):
     print('Start to doc2vec: v_size={}, dm={}, document_size={}'
           .format(v_size, dm, len(documents)))
-    cores = multiprocessing.cpu_count()
     model = Doc2Vec(dm=dm, vector_size=v_size, negative=5, hs=0, min_count=1,
-                    sample=0, workers=cores, alpha=0.025, min_alpha=0.001)
+                    sample=0, workers=cores, alpha=0.025, min_alpha=0.0001)
     begin = timeit.default_timer()
     model.build_vocab(documents)
     end = timeit.default_timer()
@@ -116,47 +119,23 @@ def doc2vec_training(documents, v_size, dm=1):
     model.train(documents, total_examples=model.corpus_count, epochs=30)
     end = timeit.default_timer()
     print('time for doc2vec model training: {} seconds'.format(end - begin))
-
     model_name = '_'.join(['doc2vec', 'vsize={}'.format(v_size),
-                          'dm={}'.format(dm), 'model.d2v'])
+                           'dsize={}'.format(len(documents)),
+                           'dm={}'.format(dm), 'model.d2v'])
     fname = get_tmpfile(os.path.join(CWD, data_dir, model_name))  # d2v 存储文件名
     model.save(fname)
     print('Save model!')
     return model
 
-# # gensim 生成训练生成向量
-# print('Start to doc2vec:')
-# cores = multiprocessing.cpu_count()
-# vector_size = 100
-# vector_size2 = 200
-# vector_size3 = 300
-# model_dbow = Doc2Vec(dm=1, vector_size=vector_size, negative=5, hs=0,
-#                      min_count=1, sample=0, workers=cores, alpha=0.025,
-#                      min_alpha=0.001)
-# model_dbow.build_vocab(all_documents)
-# all_documents = utils.shuffle(all_documents)
-# start = timeit.default_timer()
-# model_dbow.train(all_documents, total_examples=model_dbow.corpus_count,
-#                  epochs=30)
-# stop = timeit.default_timer()
-# print('time for doc2vec model training: {} seconds'.format(stop - start))
-#
-# model_dbow.save(fname)
-# print('Save model!')
-
-# model_dbow = Doc2Vec.load(fname)
-
 
 def get_vectors(model, v_size, quantity):
     train_x = np.zeros((quantity, v_size))
     test_x = np.zeros((test_quantity, v_size))
-
     for j in range(quantity + test_line_cnt):
         if j < quantity:
             train_x[j] = model[j]
         else:
             test_x[j - quantity] = model[j]
-
     return train_x, test_x
 
 
@@ -172,28 +151,39 @@ def ML_training(clf_name, clf_instance, train_x, train_y, test_x, test_y):
           .format(clf_name, end - begin))
     clf.score = clf.score(test_x, test_y)
     print('{} Score is  {}'.format(clf_name, clf.score))
+    y_pred = clf.predict(test_x)
+    target_names = list(tags_index.keys())
+    print(classification_report(y_true=test_y, y_pred=y_pred,
+                                target_names=target_names))
 
 
 def ML_all(train_x, train_y, test_x, test_y):
     LR_clf = LogisticRegression()
     ML_training('LogisticRegression', LR_clf, train_x, train_y,
                 test_x, test_y)
-
     SVC_clf = svm.SVC()
     ML_training('SVC', SVC_clf, train_x, train_y,
                 test_x, test_y)
-
     T_clf = tree.DecisionTreeClassifier()
     ML_training('DecisionTree', T_clf, train_x, train_y,
                 test_x, test_y)
-
     RF_clf = RandomForestClassifier()
     ML_training('RandomForest', RF_clf, train_x, train_y,
                 test_x, test_y)
-
     SGD_clf = SGDClassifier()
     ML_training('SGD', SGD_clf, train_x, train_y,
                 test_x, test_y)
+
+
+def get_tagged_document(doc):
+    tagged_document = []
+    j = 0
+    for item in doc:
+        tagged_document.append(TaggedDocument(
+            words=item,
+            tags=[j]))
+        j += 1
+    return tagged_document
 
 
 trained_model = doc2vec_training(documents=all_documents, v_size=100, dm=1)
@@ -226,85 +216,89 @@ train_arrays, test_arrays = get_vectors(trained_model, v_size=300, quantity=5000
 ML_all(train_arrays, train_category, test_arrays, test_category)
 print(trained_model[100])
 
-s_documents = [*train_documents[0:1000], *train_documents[5000:6000],
-               *train_documents[10000:11000], *train_documents[15000:16000],
-               *train_documents[20000:21000], *train_documents[25000:26000],
-               *train_documents[30000:31000], *train_documents[35000:36000],
-               *train_documents[40000:41000], *train_documents[45000:46000],
-               *test_documents]
-s_category = [*train_category[0:1000], *train_category[5000:6000],
-              *train_category[10000:11000], *train_category[15000:16000],
-              *train_category[20000:21000], *train_category[25000:26000],
-              *train_category[30000:31000], *train_category[35000:36000],
-              *train_category[40000:41000], *train_category[45000:46000]]
-trained_model = doc2vec_training(documents=s_documents, v_size=100, dm=1)
-train_arrays, test_arrays = get_vectors(trained_model, v_size=100, quantity=10000)
-ML_all(train_arrays, train_category, test_arrays, test_category)
+s_documents = [*pure_train_documents[0:3000], *pure_train_documents[5000:8000],
+               *pure_train_documents[10000:13000], *pure_train_documents[15000:18000],
+               *pure_train_documents[20000:23000], *pure_train_documents[25000:28000],
+               *pure_train_documents[30000:33000], *pure_train_documents[35000:38000],
+               *pure_train_documents[40000:43000], *pure_train_documents[45000:48000],
+               *pure_test_documents]
+s_category = [*train_category[0:3000], *train_category[5000:8000],
+              *train_category[10000:13000], *train_category[15000:18000],
+              *train_category[20000:23000], *train_category[25000:28000],
+              *train_category[30000:33000], *train_category[35000:38000],
+              *train_category[40000:43000], *train_category[45000:48000]]
+
+s_tagged_documents = get_tagged_document(doc=s_documents)
+trained_model = doc2vec_training(documents=s_tagged_documents, v_size=100, dm=1)
+train_arrays, test_arrays = get_vectors(trained_model, v_size=100, quantity=30000)
+ML_all(train_arrays, s_category, test_arrays, test_category)
 print(trained_model[100])
 
 trained_model = doc2vec_training(documents=s_documents, v_size=200, dm=1)
-train_arrays, test_arrays = get_vectors(trained_model, v_size=200, quantity=10000)
-ML_all(train_arrays, train_category, test_arrays, test_category)
+train_arrays, test_arrays = get_vectors(trained_model, v_size=200, quantity=30000)
+ML_all(train_arrays, s_category, test_arrays, test_category)
 print(trained_model[100])
 
 trained_model = doc2vec_training(documents=s_documents, v_size=300, dm=1)
-train_arrays, test_arrays = get_vectors(trained_model, v_size=300, quantity=10000)
-ML_all(train_arrays, train_category, test_arrays, test_category)
+train_arrays, test_arrays = get_vectors(trained_model, v_size=300, quantity=30000)
+ML_all(train_arrays, s_category, test_arrays, test_category)
 print(trained_model[100])
 
 trained_model = doc2vec_training(documents=s_documents, v_size=100, dm=0)
-train_arrays, test_arrays = get_vectors(trained_model, v_size=100, quantity=10000)
-ML_all(train_arrays, train_category, test_arrays, test_category)
+train_arrays, test_arrays = get_vectors(trained_model, v_size=100, quantity=30000)
+ML_all(train_arrays, s_category, test_arrays, test_category)
 print(trained_model[100])
 
 trained_model = doc2vec_training(documents=s_documents, v_size=200, dm=0)
-train_arrays, test_arrays = get_vectors(trained_model, v_size=200, quantity=10000)
-ML_all(train_arrays, train_category, test_arrays, test_category)
+train_arrays, test_arrays = get_vectors(trained_model, v_size=200, quantity=30000)
+ML_all(train_arrays, s_category, test_arrays, test_category)
 print(trained_model[100])
 
 trained_model = doc2vec_training(documents=s_documents, v_size=300, dm=0)
-train_arrays, test_arrays = get_vectors(trained_model, v_size=300, quantity=10000)
-ML_all(train_arrays, train_category, test_arrays, test_category)
+train_arrays, test_arrays = get_vectors(trained_model, v_size=300, quantity=30000)
+ML_all(train_arrays, s_category, test_arrays, test_category)
 print(trained_model[100])
 
-m_documents = [*train_documents[0:2500], *train_documents[5000:7500],
-               *train_documents[10000:12500], *train_documents[15000:17500],
-               *train_documents[20000:22500], *train_documents[25000:27500],
-               *train_documents[30000:32500], *train_documents[35000:37500],
-               *train_documents[40000:42500], *train_documents[45000:47500],
-               *test_documents]
-m_category = [*train_category[0:2500], *train_category[5000:7500],
-              *train_category[10000:12500], *train_category[15000:17500],
-              *train_category[20000:22500], *train_category[25000:27500],
-              *train_category[30000:32500], *train_category[35000:37500],
-              *train_category[40000:42500], *train_category[45000:47500]]
-trained_model = doc2vec_training(documents=m_documents, v_size=100, dm=1)
-train_arrays, test_arrays = get_vectors(trained_model, v_size=100, quantity=25000)
-ML_all(train_arrays, train_category, test_arrays, test_category)
+m_documents = [*pure_train_documents[0:4000], *pure_train_documents[5000:9000],
+               *pure_train_documents[10000:14000], *pure_train_documents[15000:19000],
+               *pure_train_documents[20000:24000], *pure_train_documents[25000:29000],
+               *pure_train_documents[30000:34000], *pure_train_documents[35000:39000],
+               *pure_train_documents[40000:44000], *pure_train_documents[45000:49000],
+               *pure_test_documents]
+m_category = [*train_category[0:4000], *train_category[5000:9000],
+              *train_category[10000:14000], *train_category[15000:19000],
+              *train_category[20000:24000], *train_category[25000:29000],
+              *train_category[30000:34000], *train_category[35000:39000],
+              *train_category[40000:44000], *train_category[45000:49000]]
+m_tagged_documents = get_tagged_document(doc=m_documents)
+
+trained_model = doc2vec_training(documents=m_tagged_documents, v_size=100, dm=1)
+train_arrays, test_arrays = get_vectors(trained_model, v_size=100, quantity=40000)
+ML_all(train_arrays, m_category, test_arrays, test_category)
 print(trained_model[100])
 
-trained_model = doc2vec_training(documents=m_documents, v_size=200, dm=1)
-train_arrays, test_arrays = get_vectors(trained_model, v_size=200, quantity=25000)
-ML_all(train_arrays, train_category, test_arrays, test_category)
+trained_model = doc2vec_training(documents=m_tagged_documents, v_size=200, dm=1)
+train_arrays, test_arrays = get_vectors(trained_model, v_size=200, quantity=40000)
+ML_all(train_arrays, m_category, test_arrays, test_category)
 print(trained_model[100])
 
-trained_model = doc2vec_training(documents=m_documents, v_size=300, dm=1)
-train_arrays, test_arrays = get_vectors(trained_model, v_size=300, quantity=25000)
-ML_all(train_arrays, train_category, test_arrays, test_category)
+trained_model = doc2vec_training(documents=m_tagged_documents, v_size=300, dm=1)
+train_arrays, test_arrays = get_vectors(trained_model, v_size=300, quantity=40000)
+ML_all(train_arrays, m_category, test_arrays, test_category)
 print(trained_model[100])
 
-trained_model = doc2vec_training(documents=m_documents, v_size=100, dm=0)
-train_arrays, test_arrays = get_vectors(trained_model, v_size=100, quantity=25000)
-ML_all(train_arrays, train_category, test_arrays, test_category)
+trained_model = doc2vec_training(documents=m_tagged_documents, v_size=100, dm=0)
+train_arrays, test_arrays = get_vectors(trained_model, v_size=100, quantity=40000)
+ML_all(train_arrays, m_category, test_arrays, test_category)
 print(trained_model[100])
 
-trained_model = doc2vec_training(documents=m_documents, v_size=200, dm=0)
-train_arrays, test_arrays = get_vectors(trained_model, v_size=200, quantity=25000)
-ML_all(train_arrays, train_category, test_arrays, test_category)
+trained_model = doc2vec_training(documents=m_tagged_documents, v_size=200, dm=0)
+train_arrays, test_arrays = get_vectors(trained_model, v_size=200, quantity=40000)
+ML_all(train_arrays, m_category, test_arrays, test_category)
 print(trained_model[100])
 
-trained_model = doc2vec_training(documents=m_documents, v_size=300, dm=0)
-train_arrays, test_arrays = get_vectors(trained_model, v_size=300, quantity=25000)
-ML_all(train_arrays, train_category, test_arrays, test_category)
+trained_model = doc2vec_training(documents=m_tagged_documents, v_size=300, dm=0)
+train_arrays, test_arrays = get_vectors(trained_model, v_size=300, quantity=40000)
+ML_all(train_arrays, m_category, test_arrays, test_category)
 print(trained_model[100])
 
