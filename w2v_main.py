@@ -99,7 +99,7 @@ print(train_documents[100])
 def word2vec_training(documents, v_size, sg=1):
     print('Start to word2vec: v_size={}, sg={}, document_size={}'
           .format(v_size, sg, len(documents)))
-    model = Word2Vec(sg=sg, size=100, negative=5, hs=0, min_count=1, sample=0,
+    model = Word2Vec(sg=sg, size=v_size, negative=5, hs=0, min_count=1, sample=0,
                      workers=cores, alpha=0.025, min_alpha=0.0001)
     begin = timeit.default_timer()
     model.build_vocab(documents)
@@ -168,19 +168,15 @@ def ML_all(train_x, train_y, test_x, test_y):
     LR_clf = LogisticRegression()
     ML_training('LogisticRegression', LR_clf, train_x, train_y,
                 test_x, test_y)
-
     SVC_clf = svm.SVC()
     ML_training('SVC', SVC_clf, train_x, train_y,
                 test_x, test_y)
-
     T_clf = tree.DecisionTreeClassifier()
     ML_training('DecisionTree', T_clf, train_x, train_y,
                 test_x, test_y)
-
     RF_clf = RandomForestClassifier()
     ML_training('RandomForest', RF_clf, train_x, train_y,
                 test_x, test_y)
-
     SGD_clf = SGDClassifier()
     ML_training('SGD', SGD_clf, train_x, train_y,
                 test_x, test_y)
@@ -189,32 +185,26 @@ def ML_all(train_x, train_y, test_x, test_y):
 trained_model = word2vec_training(documents=all_documents, v_size=100, sg=1)
 train_arrays, test_arrays = get_vectors(trained_model, v_size=100, quantity=50000)
 ML_all(train_arrays, train_category, test_arrays, test_category)
-print(trained_model[100])
 
 trained_model = word2vec_training(documents=all_documents, v_size=200, sg=1)
 train_arrays, test_arrays = get_vectors(trained_model, v_size=200, quantity=50000)
 ML_all(train_arrays, train_category, test_arrays, test_category)
-print(trained_model[100])
 
 trained_model = word2vec_training(documents=all_documents, v_size=300, sg=1)
 train_arrays, test_arrays = get_vectors(trained_model, v_size=300, quantity=50000)
 ML_all(train_arrays, train_category, test_arrays, test_category)
-print(trained_model[100])
 
 trained_model = word2vec_training(documents=all_documents, v_size=100, sg=0)
 train_arrays, test_arrays = get_vectors(trained_model, v_size=100, quantity=50000)
 ML_all(train_arrays, train_category, test_arrays, test_category)
-print(trained_model[100])
 
 trained_model = word2vec_training(documents=all_documents, v_size=200, sg=0)
 train_arrays, test_arrays = get_vectors(trained_model, v_size=200, quantity=50000)
 ML_all(train_arrays, train_category, test_arrays, test_category)
-print(trained_model[100])
 
 trained_model = word2vec_training(documents=all_documents, v_size=300, sg=0)
 train_arrays, test_arrays = get_vectors(trained_model, v_size=300, quantity=50000)
 ML_all(train_arrays, train_category, test_arrays, test_category)
-print(trained_model[100])
 
 s_documents = [*train_documents[0:3000], *train_documents[5000:8000],
                *train_documents[10000:13000], *train_documents[15000:18000],
@@ -231,32 +221,26 @@ s_category = [*train_category[0:3000], *train_category[5000:8000],
 trained_model = word2vec_training(documents=s_documents, v_size=100, sg=1)
 train_arrays, test_arrays = get_vectors(trained_model, v_size=100, quantity=30000)
 ML_all(train_arrays, s_category, test_arrays, test_category)
-print(trained_model[100])
 
 trained_model = word2vec_training(documents=s_documents, v_size=200, sg=1)
 train_arrays, test_arrays = get_vectors(trained_model, v_size=200, quantity=30000)
 ML_all(train_arrays, s_category, test_arrays, test_category)
-print(trained_model[100])
 
 trained_model = word2vec_training(documents=s_documents, v_size=300, sg=1)
 train_arrays, test_arrays = get_vectors(trained_model, v_size=300, quantity=30000)
 ML_all(train_arrays, s_category, test_arrays, test_category)
-print(trained_model[100])
 
 trained_model = word2vec_training(documents=s_documents, v_size=100, sg=0)
 train_arrays, test_arrays = get_vectors(trained_model, v_size=100, quantity=30000)
 ML_all(train_arrays, s_category, test_arrays, test_category)
-print(trained_model[100])
 
 trained_model = word2vec_training(documents=s_documents, v_size=200, sg=0)
 train_arrays, test_arrays = get_vectors(trained_model, v_size=200, quantity=30000)
 ML_all(train_arrays, s_category, test_arrays, test_category)
-print(trained_model[100])
 
 trained_model = word2vec_training(documents=s_documents, v_size=300, sg=0)
 train_arrays, test_arrays = get_vectors(trained_model, v_size=300, quantity=30000)
 ML_all(train_arrays, s_category, test_arrays, test_category)
-print(trained_model[100])
 
 
 m_documents = [*train_documents[0:4000], *train_documents[5000:9000],
@@ -273,30 +257,24 @@ m_category = [*train_category[0:4000], *train_category[5000:9000],
 trained_model = word2vec_training(documents=m_documents, v_size=100, sg=1)
 train_arrays, test_arrays = get_vectors(trained_model, v_size=100, quantity=40000)
 ML_all(train_arrays, m_category, test_arrays, test_category)
-print(trained_model[100])
 
 trained_model = word2vec_training(documents=m_documents, v_size=200, sg=1)
 train_arrays, test_arrays = get_vectors(trained_model, v_size=200, quantity=40000)
 ML_all(train_arrays, m_category, test_arrays, test_category)
-print(trained_model[100])
 
 trained_model = word2vec_training(documents=m_documents, v_size=300, sg=1)
 train_arrays, test_arrays = get_vectors(trained_model, v_size=300, quantity=40000)
 ML_all(train_arrays, m_category, test_arrays, test_category)
-print(trained_model[100])
 
 trained_model = word2vec_training(documents=m_documents, v_size=100, sg=0)
 train_arrays, test_arrays = get_vectors(trained_model, v_size=100, quantity=40000)
 ML_all(train_arrays, m_category, test_arrays, test_category)
-print(trained_model[100])
 
 trained_model = word2vec_training(documents=m_documents, v_size=200, sg=0)
 train_arrays, test_arrays = get_vectors(trained_model, v_size=200, quantity=40000)
 ML_all(train_arrays, m_category, test_arrays, test_category)
-print(trained_model[100])
 
 trained_model = word2vec_training(documents=m_documents, v_size=300, sg=0)
 train_arrays, test_arrays = get_vectors(trained_model, v_size=300, quantity=40000)
 ML_all(train_arrays, m_category, test_arrays, test_category)
-print(trained_model[100])
 

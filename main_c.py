@@ -234,27 +234,27 @@ train_arrays, test_arrays = get_vectors(trained_model, v_size=100, quantity=3000
 ML_all(train_arrays, s_category, test_arrays, test_category)
 print(trained_model[100])
 
-trained_model = doc2vec_training(documents=s_documents, v_size=200, dm=1)
+trained_model = doc2vec_training(documents=s_tagged_documents, v_size=200, dm=1)
 train_arrays, test_arrays = get_vectors(trained_model, v_size=200, quantity=30000)
 ML_all(train_arrays, s_category, test_arrays, test_category)
 print(trained_model[100])
 
-trained_model = doc2vec_training(documents=s_documents, v_size=300, dm=1)
+trained_model = doc2vec_training(documents=s_tagged_documents, v_size=300, dm=1)
 train_arrays, test_arrays = get_vectors(trained_model, v_size=300, quantity=30000)
 ML_all(train_arrays, s_category, test_arrays, test_category)
 print(trained_model[100])
 
-trained_model = doc2vec_training(documents=s_documents, v_size=100, dm=0)
+trained_model = doc2vec_training(documents=s_tagged_documents, v_size=100, dm=0)
 train_arrays, test_arrays = get_vectors(trained_model, v_size=100, quantity=30000)
 ML_all(train_arrays, s_category, test_arrays, test_category)
 print(trained_model[100])
 
-trained_model = doc2vec_training(documents=s_documents, v_size=200, dm=0)
+trained_model = doc2vec_training(documents=s_tagged_documents, v_size=200, dm=0)
 train_arrays, test_arrays = get_vectors(trained_model, v_size=200, quantity=30000)
 ML_all(train_arrays, s_category, test_arrays, test_category)
 print(trained_model[100])
 
-trained_model = doc2vec_training(documents=s_documents, v_size=300, dm=0)
+trained_model = doc2vec_training(documents=s_tagged_documents, v_size=300, dm=0)
 train_arrays, test_arrays = get_vectors(trained_model, v_size=300, quantity=30000)
 ML_all(train_arrays, s_category, test_arrays, test_category)
 print(trained_model[100])
